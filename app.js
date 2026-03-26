@@ -384,23 +384,36 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.leaveForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         showLoader(true);
+        
         const u = state.user;
+        const firstName = getFuzzyValue(u, 'firstname') || "";
+        const lastName = getFuzzyValue(u, 'lastname') || "";
+        
         const data = {
             empId: getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid,
+            name: `${firstName} ${lastName}`.trim(),
             leavetype: document.getElementById('leave-type').value,
             startdate: document.getElementById('leave-start').value,
             enddate: document.getElementById('leave-end').value,
             reason: document.getElementById('leave-reason').value,
             status: 'Pending',
-            createdAt: new Date().getTime(),
-            uuid: Math.random().toString(36).substr(2, 9),
-            hrId: CONFIG.HR_ID
+            createdAt: new Date().toLocaleDateString(),
+            uuid: Math.random().toString(36).substr(2, 9)
         };
+
         const result = await postToSheet('leaves', data);
+        
         if (result.status === 'success') {
-            alert('Request Sent.');
-            state.db = await fetchFullData();
+            alert('Request Sent Successfully!');
+            
+            // Local State Update (Prevents need for full refresh)
+            if (!state.db.leaves) state.db.leaves = [];
+            state.db.leaves.unshift(data); 
+            
+            elements.leaveForm.reset();
             switchSubPane('leave-history');
+        } else {
+            alert('Submission Failed. Please check your connection.');
         }
         showLoader(false);
     });
