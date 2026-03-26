@@ -151,8 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return await response.json();
         } catch (error) {
             console.error('Fetch Error:', error);
-            // If it's not valid JSON, it might be a login redirect or error page
-            return { error: 'Invalid response from Google (likely authorization needed or wrong URL).' };
+            return { error: 'Invalid response from Google (Check Auth/URL).' };
         }
     };
 
@@ -171,88 +170,119 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- UI Rendering Logic (Filtered by User) ---
-
-    // Aggressive Normalizers
+    // --- Aggressive Normalizers (Fuzzy Search) ---
+    
     const normID = (str) => (str || "").toString().replace(/\D/g, "");
     const normDate = (d) => (d || "").toString().split('T')[0].trim();
+
+    // FUZZY FINDER: Looks for key that "contains" a word, ignoring case/chars
+    const getFuzzyKey = (obj, pattern) => {
+        if (!obj) return null;
+        return Object.keys(obj).find(k => {
+            const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+            return cleanKey.includes(pattern.toLowerCase());
+        });
+    };
+
+    const getFuzzyValue = (obj, pattern) => {
+        const key = getFuzzyKey(obj, pattern);
+        return key ? obj[key] : null;
+    };
 
     const renderAllData = () => {
         if (!state.user || !state.db) return;
         
-        const id = normID(state.user.empId || state.user.employeeid || state.user.uuid);
+        const u = state.user;
+        const employeeId = normID(getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid);
         
         // 1. Dashboard
-        elements.empName.textContent = `${state.user.firstname || state.user.FirstName || ""} ${state.user.lastname || state.user.LastName || ""}`;
-        elements.empPosition.textContent = state.user.jobtitle || state.user.JobTitle || state.user.position || "--";
-        elements.empDept.textContent = state.user.department || state.user.Department || "--";
-        elements.empHired.textContent = state.user.hiredDate || state.user.HiredDate || "--";
-        elements.dashGreeting.textContent = `Welcome back, ${state.user.firstname || state.user.FirstName || "Personnel"}`;
+        elements.empName.textContent = `${getFuzzyValue(u, 'firstname') || ""} ${getFuzzyValue(u, 'lastname') || ""}`.trim() || "Personnel";
+        elements.empPosition.textContent = getFuzzyValue(u, 'jobtitle') || getFuzzyValue(u, 'position') || "--";
+        elements.empDept.textContent = getFuzzyValue(u, 'department') || getFuzzyValue(u, 'dept') || "--";
+        elements.empHired.textContent = getFuzzyValue(u, 'hireddate') || getFuzzyValue(u, 'hiredate') || "--";
+        elements.dashGreeting.textContent = `Welcome back, ${getFuzzyValue(u, 'firstname') || "Personnel"}`;
         elements.dashDate.textContent = new Date().toLocaleDateString('en-US', { 
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
         });
 
         // 2. Attendance
         const attendance = state.db.attendance || state.db.Attendance || [];
-        const attKey = attendance[0]?.hasOwnProperty('empId') ? 'empId' : (attendance[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
-        const myAttendance = attendance.filter(log => normID(log[attKey]) === id).sort((a, b) => new Date(b.date) - new Date(a.date));
+        const myAttendance = attendance.filter(log => {
+            const logId = normID(getFuzzyValue(log, 'empid') || getFuzzyValue(log, 'employeeid') || log.uuid);
+            return logId === employeeId;
+        }).sort((a, b) => new Date(b.date) - new Date(a.date));
             
         elements.attendanceList.innerHTML = myAttendance.map(log => `
             <div class="list-item">
                 <div class="item-main">
-                    <span class="item-title">${log.date}</span>
-                    <span class="item-sub">${log.timein || log.clockin || ""} - ${log.timeout || log.clockout || ""}</span>
+                    <span class="item-title">${getFuzzyValue(log, 'date')}</span>
+                    <span class="item-sub">${getFuzzyValue(log, 'timein') || getFuzzyValue(log, 'clockin') || ""} - ${getFuzzyValue(log, 'timeout') || getFuzzyValue(log, 'clockout') || ""}</span>
                 </div>
                 <div class="item-meta">
-                    <span class="badge-${(log.status || 'Present').toLowerCase() === 'present' ? 'green' : 'amber'}">${log.status || 'Present'}</span>
+                    <span class="badge-${(getFuzzyValue(log, 'status') || 'Present').toLowerCase() === 'present' ? 'green' : 'amber'}">${getFuzzyValue(log, 'status') || 'Present'}</span>
                 </div>
             </div>
         `).join('') || '<p class="text-xs text-center p-4">No recent logs found.</p>';
         elements.statAttendance.textContent = myAttendance.length > 0 ? `${myAttendance.length} Ent` : '--';
 
         // 3. Payroll
-        const payroll = state.db.payroll || state.db.Payroll || [];
-        const myPayroll = payroll.filter(pay => normID(pay[attKey] || pay.empId || pay.uuid) === id);
+        const payroll = state.db.payrollrecords || state.db.PayrollRecords || state.db.payroll || [];
+        const myPayroll = payroll.filter(pay => {
+            const payId = normID(getFuzzyValue(pay, 'empid') || getFuzzyValue(pay, 'employeeid') || pay.uuid);
+            return payId === employeeId;
+        });
         elements.payrollList.innerHTML = myPayroll.map(pay => `
             <div class="list-item">
                 <div class="item-main">
-                    <span class="item-title">${pay.period || pay.period_name}</span>
-                    <span class="item-sub">Net Pay: ${formatCurrency(pay.netpay || pay.amount)}</span>
+                    <span class="item-title">${getFuzzyValue(pay, 'period') || "Payroll Record"}</span>
+                    <span class="item-sub">Net Pay: ${formatCurrency(getFuzzyValue(pay, 'netpay') || getFuzzyValue(pay, 'amount'))}</span>
                 </div>
-                <div class="item-meta text-xs">${pay.released_date || pay.date}</div>
+                <div class="item-meta text-xs">${getFuzzyValue(pay, 'released') || getFuzzyValue(pay, 'date') || ""}</div>
             </div>
         `).join('') || '<p class="text-xs text-center p-4">No payroll history found.</p>';
         
         // 4. Leave Stat
-        const myLeaves = (state.db.leaves || state.db.Leaves || []).filter(l => normID(l[attKey] || l.empId) === id);
-        elements.statLeave.textContent = `${myLeaves.filter(l => l.status === 'Approved').length} App`;
+        const myLeaves = (state.db.leaves || state.db.Leaves || state.db.leaverequests || []).filter(l => {
+            const lId = normID(getFuzzyValue(l, 'empid') || getFuzzyValue(l, 'employeeid') || l.uuid);
+            return lId === employeeId;
+        });
+        elements.statLeave.textContent = `${myLeaves.filter(l => (getFuzzyValue(l, 'status') || "").toLowerCase() === 'approved').length} App`;
     };
 
     const renderLeaveHistory = () => {
-        const id = normID(state.user.empId || state.user.employeeid || state.user.uuid);
-        const leaves = state.db.leaves || state.db.Leaves || [];
-        const lKey = leaves[0]?.hasOwnProperty('empId') ? 'empId' : 'uuid';
-        const myLeaves = leaves.filter(l => normID(l[lKey]) === id);
+        const u = state.user;
+        const employeeId = normID(getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid);
+        const leaves = state.db.leaves || state.db.Leaves || state.db.leaverequests || [];
+        const myLeaves = leaves.filter(l => {
+            const lId = normID(getFuzzyValue(l, 'empid') || getFuzzyValue(l, 'employeeid') || l.uuid);
+            return lId === employeeId;
+        });
+        
         elements.leaveList.innerHTML = myLeaves.map(leave => `
             <div class="list-item">
                 <div class="item-main">
-                    <span class="item-title">${leave.leavetype || leave.type} Leave</span>
-                    <span class="item-sub">${leave.startdate} to ${leave.enddate}</span>
+                    <span class="item-title">${getFuzzyValue(leave, 'leavetype') || "Leave"}</span>
+                    <span class="item-sub">${getFuzzyValue(leave, 'startdate')} to ${getFuzzyValue(leave, 'enddate')}</span>
                 </div>
-                <div class="item-meta"><span class="badge-${(leave.status || 'Pending').toLowerCase()}">${leave.status || 'Pending'}</span></div>
+                <div class="item-meta"><span class="badge-${(getFuzzyValue(leave, 'status') || 'Pending').toLowerCase()}">${getFuzzyValue(leave, 'status') || 'Pending'}</span></div>
             </div>
         `).join('') || '<p class="text-xs text-center p-4">No leave requests found.</p>';
     };
 
     const renderDocuments = () => {
-        const id = normID(state.user.empId || state.user.employeeid || state.user.uuid);
+        const u = state.user;
+        const employeeId = normID(getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid);
         const docs = state.db.documents || state.db.Documents || [];
-        const myDocs = docs.filter(d => normID(d.empId || d.uuid) === id);
+        const myDocs = docs.filter(d => {
+            const dId = normID(getFuzzyValue(d, 'empid') || getFuzzyValue(d, 'employeeid') || d.uuid);
+            return dId === employeeId;
+        });
+        
         elements.docList.innerHTML = myDocs.map(doc => `
             <div class="list-item">
                 <div class="item-main">
-                    <span class="item-title">${doc.customname || doc.name}</span>
-                    <span class="item-sub">Uploaded on ${doc.date}</span>
+                    <span class="item-title">${getFuzzyValue(doc, 'customname') || getFuzzyValue(doc, 'name')}</span>
+                    <span class="item-sub">Uploaded on ${getFuzzyValue(doc, 'date')}</span>
                 </div>
                 <div class="item-meta text-xs">View</div>
             </div>
@@ -265,47 +295,44 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         showLoader(true);
         
-        const empid = document.getElementById('employee-id').value.trim();
-        const birthday = document.getElementById('birthdate').value.trim(); 
+        const empidInput = document.getElementById('employee-id').value.trim();
+        const birthdayInput = document.getElementById('birthdate').value.trim(); 
         
         console.log('--- Auth Initialization ---');
-        console.log('Input ID:', empid, 'Input Birthday:', birthday);
+        console.log('Input ID:', empidInput, 'Input Birthday:', birthdayInput);
 
         state.db = await fetchFullData();
         
-        if (!state.db) {
-            alert('Cloud security link failure. Check internet connection.');
+        if (!state.db || state.db.error) {
+            alert('Security Error: ' + (state.db?.error || 'Unknown Link Error'));
             showLoader(false);
             return;
         }
 
-        // Search in all likely tables
         const users = state.db.employees || state.db.Employees || state.db.users || state.db.Users || [];
-        const tablesFound = Object.keys(state.db);
-        
-        console.log('Database Result:', state.db);
-        console.log('Tables Found:', tablesFound);
+        console.log('Tables Found:', Object.keys(state.db));
+        console.log('Scanning Records:', users.length);
 
-        if (state.db.error) {
-            alert("GAS Backend Error:\n" + state.db.error);
-            showLoader(false);
-            return;
+        if (users.length > 0) {
+            console.log('Column Discovery (Row 1 Sample):', Object.keys(users[0]));
         }
 
         const found = users.find(u => {
-            const dbId = normID(u.empId || u.empid || u.employeeid || u.uuid || u.PersonnelID);
-            const dbDate = normDate(u.birthday || u.birthdate || u.Birthday || u.BirthDate || u.Birthdate);
+            const dbId = normID(getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid);
+            const dbDate = normDate(getFuzzyValue(u, 'birth') || getFuzzyValue(u, 'birth') || "");
             
-            if (dbId === normID(empid)) {
-                console.log('ID Match Found! Checking Birthday...');
-                console.log('DB Date:', dbDate, 'Input Date:', birthday);
+            // Console Match Log
+            if (dbId === normID(empidInput)) {
+                console.log('ID Match Found! Checking Birthday Column...');
+                const birthKey = getFuzzyKey(u, 'birth');
+                console.log(`Matched using Key [${birthKey}]: DB Value [${u[birthKey]}] vs Input [${birthdayInput}]`);
             }
 
-            return dbId === normID(empid) && dbDate === birthday;
+            return dbId === normID(empidInput) && dbDate === birthdayInput;
         });
 
         if (found) {
-            console.log('Access Granted for:', found.firstname || found.FirstName);
+            console.log('Access Granted for:', getFuzzyValue(found, 'firstname'));
             state.user = found;
             renderAllData();
             switchView('portal-section');
@@ -349,11 +376,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.uploadBtn) {
         elements.uploadBtn.addEventListener('click', async () => {
             showLoader(true);
+            const u = state.user;
             const data = {
-                empId: state.user.empId || state.user.employeeid || state.user.uuid,
+                empId: getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid,
                 customname: elements.fileRename.value,
                 date: new Date().toLocaleDateString(),
-                uuid: Math.random().toString(36).substr(2, 9)
+                uuid: Math.random().toString(36).substr(2, 9),
+                hrId: CONFIG.HR_ID
             };
             const result = await postToSheet('documents', data);
             if (result.status === 'success') {
@@ -369,15 +398,17 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.leaveForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         showLoader(true);
+        const u = state.user;
         const data = {
-            empId: state.user.empId || state.user.employeeid || state.user.uuid,
+            empId: getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid,
             leavetype: document.getElementById('leave-type').value,
             startdate: document.getElementById('leave-start').value,
             enddate: document.getElementById('leave-end').value,
             reason: document.getElementById('leave-reason').value,
             status: 'Pending',
             createdAt: new Date().getTime(),
-            uuid: Math.random().toString(36).substr(2, 9)
+            uuid: Math.random().toString(36).substr(2, 9),
+            hrId: CONFIG.HR_ID
         };
         const result = await postToSheet('leaves', data);
         if (result.status === 'success') {
