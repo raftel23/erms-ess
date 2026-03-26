@@ -1,6 +1,6 @@
 const CONFIG = {
     // Live Backend: HR Genesis 2 (Connected via erms-v2 Sync Engine)
-    API_URL: 'https://script.google.com/macros/s/AKfycbzskQAt6P3M3mhk2etg-aOJzbsnSTkk5_ZnXmdcEwH11bbRyUiiOwvoAU0sAzNcLgACFQ/exec',
+    API_URL: 'https://script.google.com/macros/s/AKfycbzCHMchhP9-l6aMlcJaKXBoBAiXmmfsL2gLZ3ASwbU3YCBFUWWZAJmpnXYglWoPZmHBVQ/exec',
     MODE: 'ess', // Mode for secure employee access
 
     // Mapping for system functionality
