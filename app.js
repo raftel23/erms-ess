@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(CONFIG.API_URL, {
                 method: 'POST',
-                redirect: 'follow', // Important for GAS
+                redirect: 'follow', 
                 body: JSON.stringify({ table, data: [data] })
             });
             return await response.json();
@@ -170,36 +170,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI Rendering Logic (Filtered by User) ---
 
-    // Smart Normalizer (Digits Only)
-    const normalize = (str) => (str || "").toString().replace(/\D/g, "");
-
-    // Clean Key Match Helper (Legacy for non-ID fields)
-    const getKeyMatch = (id) => {
-        return (id || "").toString().trim();
-    };
+    // Aggressive Normalizers
+    const normID = (str) => (str || "").toString().replace(/\D/g, "");
+    const normDate = (d) => (d || "").toString().split('T')[0].trim();
 
     const renderAllData = () => {
         if (!state.user || !state.db) return;
         
-        // 1. Dashboard & Profile
-        elements.empName.textContent = `${state.user.firstname || state.user.FirstName} ${state.user.lastname || state.user.LastName}`;
-        elements.empPosition.textContent = state.user.empId || state.user.jobtitle || state.user.JobTitle || '--';
-        elements.empDept.textContent = state.user.department || state.user.Department || '--';
-        elements.empHired.textContent = state.user.hiredDate || state.user.HiredDate || '--';
-        elements.dashGreeting.textContent = `Welcome back, ${state.user.firstname || state.user.FirstName}`;
+        const id = normID(state.user.empId || state.user.employeeid || state.user.uuid);
+        
+        // 1. Dashboard
+        elements.empName.textContent = `${state.user.firstname || state.user.FirstName || ""} ${state.user.lastname || state.user.LastName || ""}`;
+        elements.empPosition.textContent = state.user.jobtitle || state.user.JobTitle || state.user.position || "--";
+        elements.empDept.textContent = state.user.department || state.user.Department || "--";
+        elements.empHired.textContent = state.user.hiredDate || state.user.HiredDate || "--";
+        elements.dashGreeting.textContent = `Welcome back, ${state.user.firstname || state.user.FirstName || "Personnel"}`;
         elements.dashDate.textContent = new Date().toLocaleDateString('en-US', { 
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
         });
 
-        // 2. Attendance (Filter by normalized ID)
-        const id = normalize(state.user.empId || state.user.employeeid || state.user.uuid);
-        const attendance = state.db.attendance || [];
-        const employeeIdKey = attendance[0]?.hasOwnProperty('empId') ? 'empId' : 
-                             (attendance[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
-        
-        const myAttendance = attendance
-            .filter(log => normalize(log[employeeIdKey]) === id)
-            .sort((a, b) => new Date(b.date) - new Date(a.date));
+        // 2. Attendance
+        const attendance = state.db.attendance || state.db.Attendance || [];
+        const attKey = attendance[0]?.hasOwnProperty('empId') ? 'empId' : (attendance[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
+        const myAttendance = attendance.filter(log => normID(log[attKey]) === id).sort((a, b) => new Date(b.date) - new Date(a.date));
             
         elements.attendanceList.innerHTML = myAttendance.map(log => `
             <div class="list-item">
@@ -212,60 +205,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `).join('') || '<p class="text-xs text-center p-4">No recent logs found.</p>';
-        
         elements.statAttendance.textContent = myAttendance.length > 0 ? `${myAttendance.length} Ent` : '--';
 
         // 3. Payroll
-        const payroll = state.db.payroll || [];
-        const myPayroll = payroll
-            .filter(pay => normalize(pay[employeeIdKey]) === id)
-            .sort((a, b) => new Date(b.periodEnd || b.date) - new Date(a.periodEnd || a.date));
-            
+        const payroll = state.db.payroll || state.db.Payroll || [];
+        const myPayroll = payroll.filter(pay => normID(pay[attKey] || pay.empId || pay.uuid) === id);
         elements.payrollList.innerHTML = myPayroll.map(pay => `
             <div class="list-item">
                 <div class="item-main">
                     <span class="item-title">${pay.period || pay.period_name}</span>
                     <span class="item-sub">Net Pay: ${formatCurrency(pay.netpay || pay.amount)}</span>
                 </div>
-                <div class="item-meta text-xs">
-                    ${pay.released_date || pay.date}
-                </div>
+                <div class="item-meta text-xs">${pay.released_date || pay.date}</div>
             </div>
         `).join('') || '<p class="text-xs text-center p-4">No payroll history found.</p>';
-
+        
         // 4. Leave Stat
-        const leaves = state.db.leaves || [];
-        const myLeaves = leaves.filter(l => getKeyMatch(l[employeeIdKey]) === id);
+        const myLeaves = (state.db.leaves || state.db.Leaves || []).filter(l => normID(l[attKey] || l.empId) === id);
         elements.statLeave.textContent = `${myLeaves.filter(l => l.status === 'Approved').length} App`;
     };
 
     const renderLeaveHistory = () => {
-        const id = normalize(state.user.empId || state.user.employeeid || state.user.uuid);
-        const leaves = state.db.leaves || [];
-        const employeeIdKey = leaves[0]?.hasOwnProperty('empId') ? 'empId' : 
-                             (leaves[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
-        const myLeaves = leaves.filter(l => normalize(l[employeeIdKey]) === id);
-        
+        const id = normID(state.user.empId || state.user.employeeid || state.user.uuid);
+        const leaves = state.db.leaves || state.db.Leaves || [];
+        const lKey = leaves[0]?.hasOwnProperty('empId') ? 'empId' : 'uuid';
+        const myLeaves = leaves.filter(l => normID(l[lKey]) === id);
         elements.leaveList.innerHTML = myLeaves.map(leave => `
             <div class="list-item">
                 <div class="item-main">
                     <span class="item-title">${leave.leavetype || leave.type} Leave</span>
                     <span class="item-sub">${leave.startdate} to ${leave.enddate}</span>
                 </div>
-                <div class="item-meta">
-                    <span class="badge-${(leave.status || 'Pending').toLowerCase()}">${leave.status || 'Pending'}</span>
-                </div>
+                <div class="item-meta"><span class="badge-${(leave.status || 'Pending').toLowerCase()}">${leave.status || 'Pending'}</span></div>
             </div>
         `).join('') || '<p class="text-xs text-center p-4">No leave requests found.</p>';
     };
 
     const renderDocuments = () => {
-        const id = normalize(state.user.empId || state.user.employeeid || state.user.uuid);
-        const docs = state.db.documents || [];
-        const employeeIdKey = docs[0]?.hasOwnProperty('empId') ? 'empId' : 
-                             (docs[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
-        const myDocs = docs.filter(d => normalize(d[employeeIdKey]) === id);
-        
+        const id = normID(state.user.empId || state.user.employeeid || state.user.uuid);
+        const docs = state.db.documents || state.db.Documents || [];
+        const myDocs = docs.filter(d => normID(d.empId || d.uuid) === id);
         elements.docList.innerHTML = myDocs.map(doc => `
             <div class="list-item">
                 <div class="item-main">
@@ -284,8 +263,11 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoader(true);
         
         const empid = document.getElementById('employee-id').value.trim();
-        const birthday = document.getElementById('birthdate').value.trim(); 
+        const birthday = document.getElementById('birthdate').value.trim(); // YYYY-MM-DD
         
+        console.log('--- Auth Initialization ---');
+        console.log('Input ID:', empid, 'Input Birthday:', birthday);
+
         state.db = await fetchFullData();
         
         if (!state.db) {
@@ -294,19 +276,31 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // AGGRESSIVE MATCHER (Trim + Multi-Key Support)
-        const users = state.db.employees || state.db.users || [];
+        // Search in all likely tables
+        const users = state.db.employees || state.db.Employees || state.db.users || state.db.Users || [];
+        console.log('Database Tables Found:', Object.keys(state.db));
+        console.log('Employee Records Count:', users.length);
+
         const found = users.find(u => {
-            const dbId = normalize(u.empId || u.empid || u.employeeid || u.uuid);
-            const dbDate = (u.birthday || u.birthdate || u.Birthday || u.BirthDate || "").toString().trim();
-            return dbId === normalize(empid) && dbDate === birthday;
+            const dbId = normID(u.empId || u.empid || u.employeeid || u.uuid || u.PersonnelID);
+            const dbDate = normDate(u.birthday || u.birthdate || u.Birthday || u.BirthDate || u.Birthdate);
+            
+            // Console Match Log (Hidden Debugger)
+            if (dbId === normID(empid)) {
+                console.log('ID Match Found! Checking Birthday...');
+                console.log('DB Date:', dbDate, 'Input Date:', birthday);
+            }
+
+            return dbId === normID(empid) && dbDate === birthday;
         });
 
         if (found) {
+            console.log('Access Granted for:', found.firstname || found.FirstName);
             state.user = found;
             renderAllData();
             switchView('portal-section');
         } else {
+            console.error('Match Failed. No user found with provided credentials.');
             alert('Personnel ID or Birthday does not match our records.');
         }
         
@@ -328,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.headerCards.forEach(card => card.addEventListener('click', () => switchPane(card.getAttribute('data-pane'))));
     elements.backButtons.forEach(btn => btn.addEventListener('click', () => switchPane(null)));
-    elements.subNavItems.forEach(item => item.addEventListener('click', () => switchPane(item.getAttribute('data-sub'))));
+    elements.subNavItems.forEach(item => item.addEventListener('click', () => switchSubPane(item.getAttribute('data-sub'))));
 
     if (elements.fileInput) {
         elements.fileInput.addEventListener('change', (e) => {
