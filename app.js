@@ -146,7 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fetchFullData = async () => {
         try {
-            const response = await fetch(CONFIG.API_URL, { redirect: 'follow' });
+            const url = `${CONFIG.API_URL}${CONFIG.API_URL.includes('?') ? '&' : '?'}hrId=${CONFIG.HR_ID}`;
+            const response = await fetch(url, { redirect: 'follow' });
             return await response.json();
         } catch (error) {
             console.error('Fetch Error:', error);
@@ -157,10 +158,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const postToSheet = async (table, data) => {
         try {
-            const response = await fetch(CONFIG.API_URL, {
+            const url = `${CONFIG.API_URL}${CONFIG.API_URL.includes('?') ? '&' : '?'}hrId=${CONFIG.HR_ID}`;
+            const response = await fetch(url, {
                 method: 'POST',
                 redirect: 'follow', 
-                body: JSON.stringify({ table, data: [data] })
+                body: JSON.stringify({ table, data: [data], hrId: CONFIG.HR_ID })
             });
             return await response.json();
         } catch (error) {
