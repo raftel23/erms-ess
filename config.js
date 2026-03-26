@@ -1,6 +1,6 @@
 const CONFIG = {
     // Live Backend: HR Genesis 2 (Connected via erms-v2 Sync Engine)
-    API_URL: 'https://script.google.com/macros/s/AKfycbzCHMchhP9-l6aMlcJaKXBoBAiXmmfsL2gLZ3ASwbU3YCBFUWWZAJmpnXYglWoPZmHBVQ/exec',
+    API_URL: 'https://script.google.com/macros/s/AKfycbzE1UgLsYEaMv5Z6_yoWSHjDhTULn0tVKZRuOl0zNWjumcRCIltjtYEeXkO6kUMwzTsIw/exec',
     MODE: 'ess', // Mode for secure employee access
 
     // Mapping for system functionality
@@ -17,3 +17,4 @@ const CONFIG = {
     // Refresh interval for live data (ms)
     SYNC_INTERVAL: 300000 // 5 minutes
 };
+
