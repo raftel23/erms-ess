@@ -170,9 +170,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI Rendering Logic (Filtered by User) ---
 
-    // Clean Key Match Helper
+    // Smart Normalizer (Digits Only)
+    const normalize = (str) => (str || "").toString().replace(/\D/g, "");
+
+    // Clean Key Match Helper (Legacy for non-ID fields)
     const getKeyMatch = (id) => {
-        // Normalizes the target ID for comparing across sheets
         return (id || "").toString().trim();
     };
 
@@ -189,14 +191,14 @@ document.addEventListener('DOMContentLoaded', () => {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
         });
 
-        // 2. Attendance (Filter by empId or uuid)
-        const id = getKeyMatch(state.user.empId || state.user.employeeid || state.user.uuid);
+        // 2. Attendance (Filter by normalized ID)
+        const id = normalize(state.user.empId || state.user.employeeid || state.user.uuid);
         const attendance = state.db.attendance || [];
         const employeeIdKey = attendance[0]?.hasOwnProperty('empId') ? 'empId' : 
                              (attendance[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
         
         const myAttendance = attendance
-            .filter(log => getKeyMatch(log[employeeIdKey]) === id)
+            .filter(log => normalize(log[employeeIdKey]) === id)
             .sort((a, b) => new Date(b.date) - new Date(a.date));
             
         elements.attendanceList.innerHTML = myAttendance.map(log => `
@@ -216,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 3. Payroll
         const payroll = state.db.payroll || [];
         const myPayroll = payroll
-            .filter(pay => getKeyMatch(pay[employeeIdKey]) === id)
+            .filter(pay => normalize(pay[employeeIdKey]) === id)
             .sort((a, b) => new Date(b.periodEnd || b.date) - new Date(a.periodEnd || a.date));
             
         elements.payrollList.innerHTML = myPayroll.map(pay => `
@@ -238,11 +240,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderLeaveHistory = () => {
-        const id = getKeyMatch(state.user.empId || state.user.employeeid || state.user.uuid);
+        const id = normalize(state.user.empId || state.user.employeeid || state.user.uuid);
         const leaves = state.db.leaves || [];
         const employeeIdKey = leaves[0]?.hasOwnProperty('empId') ? 'empId' : 
                              (leaves[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
-        const myLeaves = leaves.filter(l => getKeyMatch(l[employeeIdKey]) === id);
+        const myLeaves = leaves.filter(l => normalize(l[employeeIdKey]) === id);
         
         elements.leaveList.innerHTML = myLeaves.map(leave => `
             <div class="list-item">
@@ -258,11 +260,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderDocuments = () => {
-        const id = getKeyMatch(state.user.empId || state.user.employeeid || state.user.uuid);
+        const id = normalize(state.user.empId || state.user.employeeid || state.user.uuid);
         const docs = state.db.documents || [];
         const employeeIdKey = docs[0]?.hasOwnProperty('empId') ? 'empId' : 
                              (docs[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
-        const myDocs = docs.filter(d => getKeyMatch(d[employeeIdKey]) === id);
+        const myDocs = docs.filter(d => normalize(d[employeeIdKey]) === id);
         
         elements.docList.innerHTML = myDocs.map(doc => `
             <div class="list-item">
@@ -295,9 +297,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // AGGRESSIVE MATCHER (Trim + Multi-Key Support)
         const users = state.db.employees || state.db.users || [];
         const found = users.find(u => {
-            const dbId = getKeyMatch(u.empId || u.empid || u.employeeid || u.uuid);
-            const dbDate = getKeyMatch(u.birthday || u.birthdate || u.Birthday || u.BirthDate);
-            return dbId === empid && dbDate === birthday;
+            const dbId = normalize(u.empId || u.empid || u.employeeid || u.uuid);
+            const dbDate = (u.birthday || u.birthdate || u.Birthday || u.BirthDate || "").toString().trim();
+            return dbId === normalize(empid) && dbDate === birthday;
         });
 
         if (found) {
