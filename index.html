@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Acorn ESS | Employee Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Auth Section -->
+        <section id="auth-section" class="view active">
+            <div class="glass-container auth-card">
+                <div class="logo-area">
+                    <div class="icon-circle">
+                        <i data-lucide="shield-check"></i>
+                    </div>
+                    <h1>ACORN<span>ESS</span></h1>
+                    <p>Genesis 4.3.1 Security</p>
+                </div>
+                
+                <form id="login-form" class="auth-form">
+                    <div class="input-group">
+                        <label for="employee-id">Personnel ID</label>
+                        <div class="input-wrapper">
+                            <i data-lucide="user"></i>
+                            <input type="text" id="employee-id" placeholder="e.g. 2024-001" required>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="birthdate">Verification Key (Birthdate)</label>
+                        <div class="input-wrapper">
+                            <i data-lucide="calendar"></i>
+                            <input type="date" id="birthdate" required>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" id="login-btn" class="primary-btn">
+                        <span>Initialize Session</span>
+                        <i data-lucide="arrow-right"></i>
+                    </button>
+                    
+                    <p class="auth-footer">Internal Access Only. HIPAA & Data Privacy Compliant.</p>
+                </form>
+            </div>
+        </section>
+
+        <!-- Main Portal Section -->
+        <section id="portal-section" class="view">
+            <!-- Navigation Sidebar/Top -->
+            <header class="main-header glass">
+                <div class="header-left">
+                    <div class="mini-logo">A</div>
+                    <div class="sync-indicator online" id="sync-status">
+                        <span class="dot"></span>
+                        <span class="status-text">Cloud Linked</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button id="logout-btn" class="icon-btn">
+                        <i data-lucide="log-out"></i>
+                    </button>
+                </div>
+            </header>
+
+            <main class="content-area">
+                <!-- Welcome Banner (Persistent) -->
+                <div class="welcome-banner">
+                    <h2 id="dash-greeting">Welcome back, Personnel</h2>
+                    <p id="dash-date">Thursday, March 26, 2026</p>
+                </div>
+
+                <!-- 2x2 Grid Header -->
+                <div class="stats-grid header-grid">
+                    <div class="stat-card glass" data-pane="profile-pane">
+                        <i data-lucide="user" class="text-emerald"></i>
+                        <div class="stat-info">
+                            <span class="stat-label">Personnel</span>
+                            <span class="stat-value">Profile</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass" data-pane="attendance-pane">
+                        <i data-lucide="clock" class="text-emerald"></i>
+                        <div class="stat-info">
+                            <span class="stat-label">Logs</span>
+                            <span class="stat-value" id="stat-attendance">--</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass" data-pane="payroll-pane">
+                        <i data-lucide="wallet" class="text-blue"></i>
+                        <div class="stat-info">
+                            <span class="stat-label">Pay</span>
+                            <span class="stat-value">History</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass" data-pane="leave-pane">
+                        <i data-lucide="calendar-plus" class="text-amber"></i>
+                        <div class="stat-info">
+                            <span class="stat-label">Leave</span>
+                            <span class="stat-value" id="stat-leave">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View Container -->
+                <div class="tab-content" id="active-tab-view">
+                    <!-- Profile Pane (Detail Mode) -->
+                    <div id="profile-pane" class="pane">
+                        <div class="pane-header">
+                            <button class="back-btn"><i data-lucide="arrow-left"></i></button>
+                            <h3 class="pane-title">Employee Profile</h3>
+                        </div>
+
+                        <!-- Sub-Navigation for Profile -->
+                        <div class="sub-nav">
+                            <button class="sub-nav-item active" data-sub="profile-general">General</button>
+                            <button class="sub-nav-item" data-sub="profile-docs">Documents</button>
+                        </div>
+                        
+                        <!-- General Info Sub-Pane -->
+                        <div id="profile-general" class="sub-pane active">
+                            <div class="glass-card profile-card">
+                                <div class="profile-header">
+                                    <div class="avatar">
+                                        <i data-lucide="user"></i>
+                                    </div>
+                                    <div class="name-info">
+                                        <h3 id="emp-name">Loading...</h3>
+                                        <p id="emp-position">--</p>
+                                    </div>
+                                </div>
+                                <div class="details-list">
+                                    <div class="detail-item">
+                                        <span class="label">Department</span>
+                                        <span class="value" id="emp-dept">--</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">Date Hired</span>
+                                        <span class="value" id="emp-hired">--</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">Status</span>
+                                        <span class="value badge-green">Active</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Documents Sub-Pane -->
+                        <div id="profile-docs" class="sub-pane">
+                            <div class="glass-card mb-4">
+                                <h4 class="text-sm font-bold mb-3 text-dim">Upload New Document</h4>
+                                <div class="upload-zone" id="upload-zone">
+                                    <i data-lucide="upload-cloud" class="mb-2"></i>
+                                    <p class="text-xs text-muted mb-3">PDF, PNG, JPG (Max 5MB)</p>
+                                    <input type="file" id="file-input" hidden>
+                                    <button class="primary-btn text-xs py-2 px-4 mb-3" onclick="document.getElementById('file-input').click()">Select File</button>
+                                    
+                                    <div id="file-info" class="hidden w-full px-4">
+                                        <p id="selected-filename" class="text-xs font-bold mb-2 truncate"></p>
+                                        <input type="text" id="file-rename" class="glass-input text-xs mb-3" placeholder="Enter custom name (e.g. PhilHealth ID)">
+                                        <button id="upload-btn" class="primary-btn w-full text-xs">Confirm Upload</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h4 class="text-sm font-bold mb-3 text-dim">Recent Documents</h4>
+                            <div id="doc-list" class="list-container">
+                                <!-- Injected by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attendance Pane -->
+                    <div id="attendance-pane" class="pane">
+                        <div class="pane-header">
+                            <button class="back-btn"><i data-lucide="arrow-left"></i></button>
+                            <h3 class="pane-title">Recent Attendance</h3>
+                        </div>
+                        <div id="attendance-list" class="list-container">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Payroll Pane -->
+                    <div id="payroll-pane" class="pane">
+                        <div class="pane-header">
+                            <button class="back-btn"><i data-lucide="arrow-left"></i></button>
+                            <h3 class="pane-title">Payroll History</h3>
+                        </div>
+                        <div id="payroll-list" class="list-container">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Leave Pane -->
+                    <div id="leave-pane" class="pane">
+                        <div class="pane-header">
+                            <button class="back-btn"><i data-lucide="arrow-left"></i></button>
+                            <h3 class="pane-title">Request Leave</h3>
+                        </div>
+
+                        <!-- Sub-Navigation for Leave -->
+                        <div class="sub-nav">
+                            <button class="sub-nav-item active" data-sub="leave-apply">Apply</button>
+                            <button class="sub-nav-item" data-sub="leave-history">History</button>
+                        </div>
+
+                        <!-- Apply Sub-Pane -->
+                        <div id="leave-apply" class="sub-pane active">
+                            <form id="leave-form" class="glass-card p-6 gap-4 flex flex-col">
+                                <div class="input-group">
+                                    <label>Leave Type</label>
+                                    <select id="leave-type" class="glass-input">
+                                        <option value="Vacation">Vacation Leave</option>
+                                        <option value="Sick">Sick Leave</option>
+                                        <option value="Emergency">Emergency Leave</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="input-group">
+                                        <label>Start Date</label>
+                                        <input type="date" id="leave-start" class="glass-input">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>End Date</label>
+                                        <input type="date" id="leave-end" class="glass-input">
+                                    </div>
+                                </div>
+                                <div class="input-group">
+                                    <label>Reason</label>
+                                    <textarea id="leave-reason" class="glass-input" rows="3" placeholder="State your reason..."></textarea>
+                                </div>
+                                <button type="submit" class="primary-btn mt-2">Submit Request</button>
+                            </form>
+                        </div>
+
+                        <!-- History Sub-Pane -->
+                        <div id="leave-history" class="sub-pane">
+                            <div id="leave-list" class="list-container">
+                                <!-- Injected by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <!-- Global Loader -->
+        <div id="global-loader" class="loader-overlay">
+            <div class="spinner"></div>
+            <p>Linking to Cloud Backend...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
