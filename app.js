@@ -144,24 +144,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Live API Logic ---
 
-    const fetchFullData = async () => {
+    const performESSLogin = async (empId, birthday) => {
         try {
-            const url = `${CONFIG.API_URL}${CONFIG.API_URL.includes('?') ? '&' : '?'}hrId=${CONFIG.HR_ID}`;
+            const url = `${CONFIG.API_URL}?mode=${CONFIG.MODE}&empId=${encodeURIComponent(empId)}&birthday=${encodeURIComponent(birthday)}`;
             const response = await fetch(url, { redirect: 'follow' });
             return await response.json();
         } catch (error) {
-            console.error('Fetch Error:', error);
-            return { error: 'Invalid response from Google (Check Auth/URL).' };
+            console.error('Login Fetch Error:', error);
+            return { error: 'Cloud connection timeout.' };
         }
     };
 
     const postToSheet = async (table, data) => {
         try {
-            const url = `${CONFIG.API_URL}${CONFIG.API_URL.includes('?') ? '&' : '?'}hrId=${CONFIG.HR_ID}`;
-            const response = await fetch(url, {
+            const response = await fetch(CONFIG.API_URL, {
                 method: 'POST',
                 redirect: 'follow', 
-                body: JSON.stringify({ table, data: [data], hrId: CONFIG.HR_ID })
+                body: JSON.stringify({ table, data: [data], mode: 'ess_post' })
             });
             return await response.json();
         } catch (error) {
@@ -298,46 +297,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const empidInput = document.getElementById('employee-id').value.trim();
         const birthdayInput = document.getElementById('birthdate').value.trim(); 
         
-        console.log('--- Auth Initialization ---');
-        console.log('Input ID:', empidInput, 'Input Birthday:', birthdayInput);
+        console.log('--- Secure ESS Auth Initialization ---');
+        console.log('Requesting ID:', empidInput, 'Birthday:', birthdayInput);
 
-        state.db = await fetchFullData();
+        const result = await performESSLogin(empidInput, birthdayInput);
         
-        if (!state.db || state.db.error) {
-            alert('Security Error: ' + (state.db?.error || 'Unknown Link Error'));
+        if (!result || result.error) {
+            alert('Access Denied: ' + (result?.error || 'Unknown Link Error'));
             showLoader(false);
             return;
         }
 
-        const users = state.db.employees || state.db.Employees || state.db.users || state.db.Users || [];
-        console.log('Tables Found:', Object.keys(state.db));
-        console.log('Scanning Records:', users.length);
+        // The API now returns a pre-filtered 'result' object directly
+        state.user = result.user;
+        state.db = result; // Store the rest of the tables (attendance, payroll, etc.)
 
-        if (users.length > 0) {
-            console.log('Column Discovery (Row 1 Sample):', Object.keys(users[0]));
-        }
-
-        const found = users.find(u => {
-            const dbId = normID(getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid);
-            const dbDate = normDate(getFuzzyValue(u, 'birth') || getFuzzyValue(u, 'birth') || "");
-            
-            // Console Match Log
-            if (dbId === normID(empidInput)) {
-                console.log('ID Match Found! Checking Birthday Column...');
-                const birthKey = getFuzzyKey(u, 'birth');
-                console.log(`Matched using Key [${birthKey}]: DB Value [${u[birthKey]}] vs Input [${birthdayInput}]`);
-            }
-
-            return dbId === normID(empidInput) && dbDate === birthdayInput;
-        });
-
-        if (found) {
-            console.log('Access Granted for:', getFuzzyValue(found, 'firstname'));
-            state.user = found;
+        if (state.user) {
+            console.log('Access Granted for:', getFuzzyValue(state.user, 'firstname'));
             renderAllData();
             switchView('portal-section');
         } else {
-            console.error('Match Failed. No user found.');
             alert('Personnel ID or Birthday does not match our records.');
         }
         
