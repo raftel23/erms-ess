@@ -144,9 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Live API Logic ---
 
-    /**
-     * Fetch All Data from erms-v2 doGet (Sync Engine)
-     */
     const fetchFullData = async () => {
         try {
             const response = await fetch(CONFIG.API_URL, { redirect: 'follow' });
@@ -173,33 +170,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI Rendering Logic (Filtered by User) ---
 
+    // Clean Key Match Helper
+    const getKeyMatch = (id) => {
+        // Normalizes the target ID for comparing across sheets
+        return (id || "").toString().trim();
+    };
+
     const renderAllData = () => {
         if (!state.user || !state.db) return;
         
         // 1. Dashboard & Profile
-        elements.empName.textContent = `${state.user.firstname} ${state.user.lastname}`;
-        elements.empPosition.textContent = state.user.jobtitle || '--';
-        elements.empDept.textContent = state.user.department || '--';
-        elements.empHired.textContent = state.user.hiredDate || '--';
-        elements.dashGreeting.textContent = `Welcome back, ${state.user.firstname}`;
+        elements.empName.textContent = `${state.user.firstname || state.user.FirstName} ${state.user.lastname || state.user.LastName}`;
+        elements.empPosition.textContent = state.user.empId || state.user.jobtitle || state.user.JobTitle || '--';
+        elements.empDept.textContent = state.user.department || state.user.Department || '--';
+        elements.empHired.textContent = state.user.hiredDate || state.user.HiredDate || '--';
+        elements.dashGreeting.textContent = `Welcome back, ${state.user.firstname || state.user.FirstName}`;
         elements.dashDate.textContent = new Date().toLocaleDateString('en-US', { 
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
         });
 
         // 2. Attendance (Filter by empId or uuid)
-        const id = state.user.empId || state.user.employeeid || state.user.uuid;
-        const employeeIdKey = state.db.attendance?.[0]?.hasOwnProperty('empId') ? 'empId' : 
-                             (state.db.attendance?.[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
+        const id = getKeyMatch(state.user.empId || state.user.employeeid || state.user.uuid);
+        const attendance = state.db.attendance || [];
+        const employeeIdKey = attendance[0]?.hasOwnProperty('empId') ? 'empId' : 
+                             (attendance[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
         
-        const myAttendance = (state.db.attendance || [])
-            .filter(log => log[employeeIdKey] === id)
+        const myAttendance = attendance
+            .filter(log => getKeyMatch(log[employeeIdKey]) === id)
             .sort((a, b) => new Date(b.date) - new Date(a.date));
             
         elements.attendanceList.innerHTML = myAttendance.map(log => `
             <div class="list-item">
                 <div class="item-main">
                     <span class="item-title">${log.date}</span>
-                    <span class="item-sub">${log.timein || log.clockin} - ${log.timeout || log.clockout}</span>
+                    <span class="item-sub">${log.timein || log.clockin || ""} - ${log.timeout || log.clockout || ""}</span>
                 </div>
                 <div class="item-meta">
                     <span class="badge-${(log.status || 'Present').toLowerCase() === 'present' ? 'green' : 'amber'}">${log.status || 'Present'}</span>
@@ -210,8 +214,9 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.statAttendance.textContent = myAttendance.length > 0 ? `${myAttendance.length} Ent` : '--';
 
         // 3. Payroll
-        const myPayroll = (state.db.payroll || [])
-            .filter(pay => pay[employeeIdKey] === id)
+        const payroll = state.db.payroll || [];
+        const myPayroll = payroll
+            .filter(pay => getKeyMatch(pay[employeeIdKey]) === id)
             .sort((a, b) => new Date(b.periodEnd || b.date) - new Date(a.periodEnd || a.date));
             
         elements.payrollList.innerHTML = myPayroll.map(pay => `
@@ -226,16 +231,18 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `).join('') || '<p class="text-xs text-center p-4">No payroll history found.</p>';
 
-        // 4. Initial Stat Count for Leaves
-        const myLeaves = (state.db.leaves || []).filter(l => l[employeeIdKey] === id);
+        // 4. Leave Stat
+        const leaves = state.db.leaves || [];
+        const myLeaves = leaves.filter(l => getKeyMatch(l[employeeIdKey]) === id);
         elements.statLeave.textContent = `${myLeaves.filter(l => l.status === 'Approved').length} App`;
     };
 
     const renderLeaveHistory = () => {
-        const id = state.user.empId || state.user.employeeid || state.user.uuid;
-        const employeeIdKey = state.db.leaves?.[0]?.hasOwnProperty('empId') ? 'empId' : 
-                             (state.db.leaves?.[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
-        const myLeaves = (state.db.leaves || []).filter(l => l[employeeIdKey] === id);
+        const id = getKeyMatch(state.user.empId || state.user.employeeid || state.user.uuid);
+        const leaves = state.db.leaves || [];
+        const employeeIdKey = leaves[0]?.hasOwnProperty('empId') ? 'empId' : 
+                             (leaves[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
+        const myLeaves = leaves.filter(l => getKeyMatch(l[employeeIdKey]) === id);
         
         elements.leaveList.innerHTML = myLeaves.map(leave => `
             <div class="list-item">
@@ -251,10 +258,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderDocuments = () => {
-        const id = state.user.empId || state.user.employeeid || state.user.uuid;
-        const employeeIdKey = state.db.documents?.[0]?.hasOwnProperty('empId') ? 'empId' : 
-                             (state.db.documents?.[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
-        const myDocs = (state.db.documents || []).filter(d => d[employeeIdKey] === id);
+        const id = getKeyMatch(state.user.empId || state.user.employeeid || state.user.uuid);
+        const docs = state.db.documents || [];
+        const employeeIdKey = docs[0]?.hasOwnProperty('empId') ? 'empId' : 
+                             (docs[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
+        const myDocs = docs.filter(d => getKeyMatch(d[employeeIdKey]) === id);
         
         elements.docList.innerHTML = myDocs.map(doc => `
             <div class="list-item">
@@ -273,8 +281,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         showLoader(true);
         
-        const empid = document.getElementById('employee-id').value;
-        const birthday = document.getElementById('birthdate').value; // Usually YYYY-MM-DD
+        const empid = document.getElementById('employee-id').value.trim();
+        const birthday = document.getElementById('birthdate').value.trim(); 
         
         state.db = await fetchFullData();
         
@@ -284,12 +292,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Search for user in 'employees' or 'users'
+        // AGGRESSIVE MATCHER (Trim + Multi-Key Support)
         const users = state.db.employees || state.db.users || [];
-        const found = users.find(u => 
-            (u.empId == empid || u.employeeid == empid || u.uuid == empid) && 
-            (u.birthday == birthday || u.birthdate == birthday)
-        );
+        const found = users.find(u => {
+            const dbId = getKeyMatch(u.empId || u.empid || u.employeeid || u.uuid);
+            const dbDate = getKeyMatch(u.birthday || u.birthdate || u.Birthday || u.BirthDate);
+            return dbId === empid && dbDate === birthday;
+        });
 
         if (found) {
             state.user = found;
@@ -317,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.headerCards.forEach(card => card.addEventListener('click', () => switchPane(card.getAttribute('data-pane'))));
     elements.backButtons.forEach(btn => btn.addEventListener('click', () => switchPane(null)));
-    elements.subNavItems.forEach(item => item.addEventListener('click', () => switchSubPane(item.getAttribute('data-sub'))));
+    elements.subNavItems.forEach(item => item.addEventListener('click', () => switchPane(item.getAttribute('data-sub'))));
 
     if (elements.fileInput) {
         elements.fileInput.addEventListener('change', (e) => {
@@ -335,15 +344,15 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.uploadBtn.addEventListener('click', async () => {
             showLoader(true);
             const data = {
-                employeeid: state.user.employeeid || state.user.uuid,
+                empId: state.user.empId || state.user.employeeid || state.user.uuid,
                 customname: elements.fileRename.value,
                 date: new Date().toLocaleDateString(),
-                uuid: Utilities.randomUuid() // Just a client-side placeholder
+                uuid: Math.random().toString(36).substr(2, 9)
             };
             const result = await postToSheet('documents', data);
             if (result.status === 'success') {
                 alert('Document uploaded.');
-                state.db = await fetchFullData(); // Refresh local DB
+                state.db = await fetchFullData();
                 renderDocuments();
                 elements.fileInfo.classList.add('hidden');
             }
@@ -355,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         showLoader(true);
         const data = {
-            employeeid: state.user.employeeid || state.user.uuid,
+            empId: state.user.empId || state.user.employeeid || state.user.uuid,
             leavetype: document.getElementById('leave-type').value,
             startdate: document.getElementById('leave-start').value,
             enddate: document.getElementById('leave-end').value,
@@ -367,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await postToSheet('leaves', data);
         if (result.status === 'success') {
             alert('Request Sent.');
-            state.db = await fetchFullData(); // Refresh local DB
+            state.db = await fetchFullData();
             switchSubPane('leave-history');
         }
         showLoader(false);
