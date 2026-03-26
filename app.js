@@ -186,9 +186,10 @@ document.addEventListener('DOMContentLoaded', () => {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
         });
 
-        // 2. Attendance (Filter by uuid or employeeid)
-        const id = state.user.employeeid || state.user.uuid;
-        const employeeIdKey = state.db.attendance?.[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid';
+        // 2. Attendance (Filter by empId or uuid)
+        const id = state.user.empId || state.user.employeeid || state.user.uuid;
+        const employeeIdKey = state.db.attendance?.[0]?.hasOwnProperty('empId') ? 'empId' : 
+                             (state.db.attendance?.[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
         
         const myAttendance = (state.db.attendance || [])
             .filter(log => log[employeeIdKey] === id)
@@ -231,8 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderLeaveHistory = () => {
-        const id = state.user.employeeid || state.user.uuid;
-        const employeeIdKey = state.db.leaves?.[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid';
+        const id = state.user.empId || state.user.employeeid || state.user.uuid;
+        const employeeIdKey = state.db.leaves?.[0]?.hasOwnProperty('empId') ? 'empId' : 
+                             (state.db.leaves?.[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
         const myLeaves = (state.db.leaves || []).filter(l => l[employeeIdKey] === id);
         
         elements.leaveList.innerHTML = myLeaves.map(leave => `
@@ -249,8 +251,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderDocuments = () => {
-        const id = state.user.employeeid || state.user.uuid;
-        const employeeIdKey = state.db.documents?.[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid';
+        const id = state.user.empId || state.user.employeeid || state.user.uuid;
+        const employeeIdKey = state.db.documents?.[0]?.hasOwnProperty('empId') ? 'empId' : 
+                             (state.db.documents?.[0]?.hasOwnProperty('employeeid') ? 'employeeid' : 'uuid');
         const myDocs = (state.db.documents || []).filter(d => d[employeeIdKey] === id);
         
         elements.docList.innerHTML = myDocs.map(doc => `
@@ -284,8 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Search for user in 'employees' or 'users'
         const users = state.db.employees || state.db.users || [];
         const found = users.find(u => 
-            (u.employeeid === empid || u.uuid === empid) && 
-            (u.birthdate === birthday || u.birthday === birthday)
+            (u.empId == empid || u.employeeid == empid || u.uuid == empid) && 
+            (u.birthday == birthday || u.birthdate == birthday)
         );
 
         if (found) {
