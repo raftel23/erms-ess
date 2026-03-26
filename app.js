@@ -318,6 +318,12 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAllData();
             switchView('portal-section');
         } else {
+            console.warn('--- Login Debugging Report ---');
+            console.log('Server Diagnosis:', result.debug);
+            if (result.debug) {
+               console.log('Sheet Checked:', result.debug.sheetName);
+               console.log('Headers Found:', result.debug.headersFound);
+            }
             alert('Personnel ID or Birthday does not match our records.');
         }
         
