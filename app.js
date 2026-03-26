@@ -150,7 +150,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return await response.json();
         } catch (error) {
             console.error('Fetch Error:', error);
-            return null;
+            // If it's not valid JSON, it might be a login redirect or error page
+            return { error: 'Invalid response from Google (likely authorization needed or wrong URL).' };
         }
     };
 
@@ -263,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoader(true);
         
         const empid = document.getElementById('employee-id').value.trim();
-        const birthday = document.getElementById('birthdate').value.trim(); // YYYY-MM-DD
+        const birthday = document.getElementById('birthdate').value.trim(); 
         
         console.log('--- Auth Initialization ---');
         console.log('Input ID:', empid, 'Input Birthday:', birthday);
@@ -278,14 +279,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Search in all likely tables
         const users = state.db.employees || state.db.Employees || state.db.users || state.db.Users || [];
-        console.log('Database Tables Found:', Object.keys(state.db));
-        console.log('Employee Records Count:', users.length);
+        const tablesFound = Object.keys(state.db);
+        
+        console.log('Database Result:', state.db);
+        console.log('Tables Found:', tablesFound);
+
+        if (state.db.error) {
+            alert("GAS Backend Error:\n" + state.db.error);
+            showLoader(false);
+            return;
+        }
 
         const found = users.find(u => {
             const dbId = normID(u.empId || u.empid || u.employeeid || u.uuid || u.PersonnelID);
             const dbDate = normDate(u.birthday || u.birthdate || u.Birthday || u.BirthDate || u.Birthdate);
             
-            // Console Match Log (Hidden Debugger)
             if (dbId === normID(empid)) {
                 console.log('ID Match Found! Checking Birthday...');
                 console.log('DB Date:', dbDate, 'Input Date:', birthday);
@@ -300,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAllData();
             switchView('portal-section');
         } else {
-            console.error('Match Failed. No user found with provided credentials.');
+            console.error('Match Failed. No user found.');
             alert('Personnel ID or Birthday does not match our records.');
         }
         
