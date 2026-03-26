@@ -1,7 +1,7 @@
 const CONFIG = {
     // Live Backend: HR Genesis 2 (Connected via erms-v2 Sync Engine)
     API_URL: 'https://script.google.com/macros/s/AKfycbyqkApCCSRjZ_4qv81ww2GbslqD9j1snvIk_cIa8axHYL8ZS0CZAg5ngIFE4yxSS8fWrA/exec',
-    HR_ID: 'system', // Required for erms-v2 authorization
+    HR_ID: 'admin', // Full access identity
     
     // Mapping for system functionality
     ENDPOINTS: {
