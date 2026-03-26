@@ -302,6 +302,14 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Requesting ID:', empidInput, 'Birthday:', birthdayInput);
 
         const result = await performESSLogin(empidInput, birthdayInput);
+
+        // 🔍 SURFACING DEEP DIAGNOSTICS IMMEDIATELY
+        if (result && result.debug) {
+            console.warn('--- Login Debugging Report ---');
+            console.log('Server Diagnosis:', result.debug);
+            console.log('Sheet Checked:', result.debug.sheetName);
+            console.log('Headers Found:', result.debug.headersFound);
+        }
         
         if (!result || result.error) {
             alert('Access Denied: ' + (result?.error || 'Unknown Link Error'));
@@ -317,14 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Access Granted for:', getFuzzyValue(state.user, 'firstname'));
             renderAllData();
             switchView('portal-section');
-        } else {
-            console.warn('--- Login Debugging Report ---');
-            console.log('Server Diagnosis:', result.debug);
-            if (result.debug) {
-               console.log('Sheet Checked:', result.debug.sheetName);
-               console.log('Headers Found:', result.debug.headersFound);
-            }
-            alert('Personnel ID or Birthday does not match our records.');
         }
         
         showLoader(false);
