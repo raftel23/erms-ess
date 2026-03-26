@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const performESSLogin = async (empId, birthday) => {
         try {
-            const url = `${CONFIG.API_URL}?mode=${CONFIG.MODE}&empId=${encodeURIComponent(empId)}&birthday=${encodeURIComponent(birthday)}`;
+            const url = `${CONFIG.API_URL}?mode=${CONFIG.MODE}&hrId=portal&empId=${encodeURIComponent(empId)}&birthday=${encodeURIComponent(birthday)}`;
             const response = await fetch(url, { redirect: 'follow' });
             return await response.json();
         } catch (error) {
@@ -157,7 +157,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const postToSheet = async (table, data) => {
         try {
-            const response = await fetch(CONFIG.API_URL, {
+            const url = `${CONFIG.API_URL}${CONFIG.API_URL.includes('?') ? '&' : '?'}hrId=portal`;
+            const response = await fetch(url, {
                 method: 'POST',
                 redirect: 'follow', 
                 body: JSON.stringify({ table, data: [data], mode: 'ess_post' })
