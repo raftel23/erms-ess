@@ -659,7 +659,7 @@ select.glass-input option {
 .flex { display: flex; }
 .flex-col { flex-direction: column; }
 .grid { display: grid; }
-.grid-cols-2 { grid-template-cols: repeat(2, 1fr); }
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
 .p-6 { padding: 1.5rem; }
 .mt-2 { margin-top: 0.5rem; }
 .mb-2 { margin-bottom: 0.5rem; }
@@ -738,6 +738,20 @@ select.glass-input option {
 .badge-pending { background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 700; }
 .badge-approved { background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 700; }
 .badge-rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 700; }
+
+.item-remark {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 0.75rem;
+    font-size: 0.7rem;
+    font-style: italic;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
 
 /* Navigation State Utilities */
 .header-grid.hidden {

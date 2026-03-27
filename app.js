@@ -18,6 +18,18 @@ document.addEventListener('DOMContentLoaded', () => {
         isAnimating: false
     };
 
+    // Secure UUID Generator (RFC4122 compliant, with fallback for older devices)
+    const generateUUID = () => {
+        try {
+            return crypto.randomUUID();
+        } catch (e) {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                const r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+        }
+    };
+
     // DOM Elements
     const elements = {
         loader: document.getElementById('global-loader'),
@@ -155,13 +167,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const toSnakeCase = (str) => str.replace(/([A-Z])/g, "_$1").toLowerCase();
+    const toSnakeCaseKeys = (obj) => {
+        if (Array.isArray(obj)) return obj.map(toSnakeCaseKeys);
+        if (obj === null || typeof obj !== 'object' || obj instanceof Date) return obj;
+        const newObj = {};
+        for (const key of Object.keys(obj)) {
+            const newKey = toSnakeCase(key);
+            newObj[newKey] = toSnakeCaseKeys(obj[key]);
+        }
+        return newObj;
+    };
+
     const postToSheet = async (table, data) => {
         try {
-            const url = `${CONFIG.API_URL}${CONFIG.API_URL.includes('?') ? '&' : '?'}hrId=portal`;
+            // Send in the SAME format as HR Admin (erms-v2) so the
+            // Google Script writes to the existing sheet tab, not a new one.
+            const hrId = data.hrFilter || data.createdBy || 'portal';
+            const url = `${CONFIG.API_URL}${CONFIG.API_URL.includes('?') ? '&' : '?'}hrId=${encodeURIComponent(hrId)}`;
             const response = await fetch(url, {
                 method: 'POST',
-                redirect: 'follow', 
-                body: JSON.stringify({ table, data: [data], mode: 'ess_post' })
+                redirect: 'follow',
+                body: JSON.stringify({ 
+                    table: toSnakeCase(table), 
+                    data: [toSnakeCaseKeys(data)],
+                    hrId: hrId
+                })
             });
             return await response.json();
         } catch (error) {
@@ -263,8 +294,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="item-main">
                     <span class="item-title">${getFuzzyValue(leave, 'leavetype') || getFuzzyValue(leave, 'type') || "Leave"}</span>
                     <span class="item-sub">${getFuzzyValue(leave, 'startdate') || getFuzzyValue(leave, 'startDate')} to ${getFuzzyValue(leave, 'enddate') || getFuzzyValue(leave, 'endDate')}</span>
+                    ${getFuzzyValue(leave, 'adminremarks') || getFuzzyValue(leave, 'adminRemarks') ? `
+                        <div class="item-remark">
+                            <i data-lucide="message-square" style="width: 10px; height: 10px;"></i>
+                            <span>HR: ${getFuzzyValue(leave, 'adminremarks') || getFuzzyValue(leave, 'adminRemarks')}</span>
+                        </div>
+                    ` : ''}
                 </div>
-                <div class="item-meta"><span class="badge-${(getFuzzyValue(leave, 'status') || 'Pending').toLowerCase()}">${getFuzzyValue(leave, 'status') || 'Pending'}</span></div>
+                <div class="item-meta">
+                    <span class="badge-${(getFuzzyValue(leave, 'status') || 'Pending').toLowerCase()}">${getFuzzyValue(leave, 'status') || 'Pending'}</span>
+                </div>
             </div>
         `).join('') || '<p class="text-xs text-center p-4">No leave requests found.</p>';
     };
@@ -363,17 +402,28 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.uploadBtn.addEventListener('click', async () => {
             showLoader(true);
             const u = state.user;
+            // 🔒 SECURITY HANDSHAKE: Tag document to the correct HR Admin
+            const hrOwner = getFuzzyValue(u, 'hrfilter') || getFuzzyValue(u, 'createdby') || 'admin';
+            const empName = `${getFuzzyValue(u, 'firstname') || ''} ${getFuzzyValue(u, 'lastname') || ''}`.trim();
             const data = {
-                empId: getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid,
-                customname: elements.fileRename.value,
-                date: new Date().toLocaleDateString(),
-                uuid: Math.random().toString(36).substr(2, 9),
-                hrId: CONFIG.HR_ID
+                uuid: generateUUID(),
+                employeeId: Number(normID(getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.id || 0)),
+                employeeUuid: u.uuid,
+                name: elements.fileRename.value,
+                type: state.selectedFile?.type || 'application/octet-stream',
+                size: state.selectedFile?.size || 0,
+                uploadedAt: new Date().toISOString(),
+                uploadedBy: empName,
+                createdBy: hrOwner,
+                hrFilter: hrOwner,
+                updatedAt: Date.now(),
+                isDeleted: false
             };
-            const result = await postToSheet('documents', data);
+            const result = await postToSheet('employee_documents', data);
             if (result.status === 'success') {
                 alert('Document uploaded.');
-                state.db = await fetchFullData();
+                if (!state.db.documents) state.db.documents = [];
+                state.db.documents.unshift(data);
                 renderDocuments();
                 elements.fileInfo.classList.add('hidden');
             }
@@ -392,21 +442,37 @@ document.addEventListener('DOMContentLoaded', () => {
         // 🔒 SECURITY HANDSHAKE: Hands over ownership to exactly the right HR Admin
         const hrOwner = getFuzzyValue(u, 'hrfilter') || getFuzzyValue(u, 'createdby') || 'admin';
         
+        const leaveType = document.getElementById('leave-type').value;
+        const balanceField = leaveType === 'sick' ? 'slbalance' : leaveType === 'vacation' ? 'vlbalance' : null;
+        
+        // ⛔ GENESIS 4.3.5: ZERO BALANCE BLOCKING
+        if (balanceField) {
+            const currentBalance = Number(getFuzzyValue(u, balanceField) || 0);
+            if (currentBalance <= 0) {
+                alert(`Insufficient ${leaveType.toUpperCase()} leave credits (Current: 0). Application blocked.`);
+                showLoader(false);
+                return;
+            }
+        }
+        
         const data = {
-            employeeId: Number(normID(getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid)),
+            uuid: generateUUID(),                       // ✅ RFC4122 Global ID
+            employeeId: Number(normID(getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.id || 0)),
+            employeeUuid: u.uuid,                       // ✅ Cross-device primary key
             name: `${firstName} ${lastName}`.trim(),
             type: document.getElementById('leave-type').value,
             startDate: document.getElementById('leave-start').value,
             endDate: document.getElementById('leave-end').value,
             reason: document.getElementById('leave-reason').value,
-            status: 'Pending',
-            createdAt: new Date().toLocaleDateString(),
-            uuid: Math.random().toString(36).substr(2, 9),
-            hrFilter: hrOwner,
-            createdBy: hrOwner
+            status: 'pending',                          // ✅ Lowercase — matches HR Admin filter
+            appliedDate: new Date().toISOString().split('T')[0],
+            hrFilter: hrOwner,                          // ✅ Delivers to the correct Admin
+            createdBy: hrOwner,
+            updatedAt: Date.now(),                      // ✅ Sync Engine timestamp
+            isDeleted: false                            // ✅ Required for lifecycle tracking
         };
 
-        const result = await postToSheet('leaveRequests', data);
+        const result = await postToSheet('leave_requests', data);
         
         if (result.status === 'success') {
             alert('Request Sent Successfully!');
