@@ -242,8 +242,8 @@ document.addEventListener('DOMContentLoaded', () => {
         `).join('') || '<p class="text-xs text-center p-4">No payroll history found.</p>';
         
         // 4. Leave Stat
-        const myLeaves = (state.db.leaves || state.db.Leaves || state.db.leaverequests || []).filter(l => {
-            const lId = normID(getFuzzyValue(l, 'empid') || getFuzzyValue(l, 'employeeid') || l.uuid);
+        const myLeaves = (state.db.leaverequests || state.db.leaveRequests || state.db.leaves || []).filter(l => {
+            const lId = normID(getFuzzyValue(l, 'employeeid') || getFuzzyValue(l, 'empid') || l.uuid);
             return lId === employeeId;
         });
         elements.statLeave.textContent = `${myLeaves.filter(l => (getFuzzyValue(l, 'status') || "").toLowerCase() === 'approved').length} App`;
@@ -252,17 +252,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderLeaveHistory = () => {
         const u = state.user;
         const employeeId = normID(getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid);
-        const leaves = state.db.leaves || state.db.Leaves || state.db.leaverequests || [];
+        const leaves = state.db.leaverequests || state.db.leaveRequests || state.db.leaves || [];
         const myLeaves = leaves.filter(l => {
-            const lId = normID(getFuzzyValue(l, 'empid') || getFuzzyValue(l, 'employeeid') || l.uuid);
+            const lId = normID(getFuzzyValue(l, 'employeeid') || getFuzzyValue(l, 'empid') || l.uuid);
             return lId === employeeId;
         });
         
         elements.leaveList.innerHTML = myLeaves.map(leave => `
             <div class="list-item">
                 <div class="item-main">
-                    <span class="item-title">${getFuzzyValue(leave, 'leavetype') || "Leave"}</span>
-                    <span class="item-sub">${getFuzzyValue(leave, 'startdate')} to ${getFuzzyValue(leave, 'enddate')}</span>
+                    <span class="item-title">${getFuzzyValue(leave, 'leavetype') || getFuzzyValue(leave, 'type') || "Leave"}</span>
+                    <span class="item-sub">${getFuzzyValue(leave, 'startdate') || getFuzzyValue(leave, 'startDate')} to ${getFuzzyValue(leave, 'enddate') || getFuzzyValue(leave, 'endDate')}</span>
                 </div>
                 <div class="item-meta"><span class="badge-${(getFuzzyValue(leave, 'status') || 'Pending').toLowerCase()}">${getFuzzyValue(leave, 'status') || 'Pending'}</span></div>
             </div>
@@ -389,26 +389,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const firstName = getFuzzyValue(u, 'firstname') || "";
         const lastName = getFuzzyValue(u, 'lastname') || "";
         
+        // 🔒 SECURITY HANDSHAKE: Hands over ownership to exactly the right HR Admin
+        const hrOwner = getFuzzyValue(u, 'hrfilter') || getFuzzyValue(u, 'createdby') || 'admin';
+        
         const data = {
-            empId: getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid,
+            employeeId: Number(normID(getFuzzyValue(u, 'empid') || getFuzzyValue(u, 'employeeid') || u.uuid)),
             name: `${firstName} ${lastName}`.trim(),
-            leavetype: document.getElementById('leave-type').value,
-            startdate: document.getElementById('leave-start').value,
-            enddate: document.getElementById('leave-end').value,
+            type: document.getElementById('leave-type').value,
+            startDate: document.getElementById('leave-start').value,
+            endDate: document.getElementById('leave-end').value,
             reason: document.getElementById('leave-reason').value,
             status: 'Pending',
             createdAt: new Date().toLocaleDateString(),
-            uuid: Math.random().toString(36).substr(2, 9)
+            uuid: Math.random().toString(36).substr(2, 9),
+            hrFilter: hrOwner,
+            createdBy: hrOwner
         };
 
-        const result = await postToSheet('leaves', data);
+        const result = await postToSheet('leaveRequests', data);
         
         if (result.status === 'success') {
             alert('Request Sent Successfully!');
             
-            // Local State Update (Prevents need for full refresh)
-            if (!state.db.leaves) state.db.leaves = [];
-            state.db.leaves.unshift(data); 
+            // Local State Update
+            if (!state.db.leaverequests) state.db.leaverequests = [];
+            state.db.leaverequests.unshift(data); 
             
             elements.leaveForm.reset();
             switchSubPane('leave-history');
